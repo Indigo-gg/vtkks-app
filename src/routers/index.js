@@ -1,6 +1,7 @@
 import { createRouter,createMemoryHistory } from "vue-router"
 import home from "@/view/home.vue";
 import demo from "@/components/demo.vue";
+// import newnew from "@/test/newnew.vue"
 //创建路由器
 const router = createRouter({
 

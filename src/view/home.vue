@@ -1,163 +1,245 @@
 <template>
-  <v-layout class="rounded rounded-md" style="display: flex; flex-direction: column; height: 100vh;width: 100vw">
-    <v-container
 
-          id="input-usage"
-          fluid
-          class="d-flex flex-column no-padding"
-      >
-        <v-row class="flex-grow-1"> <!-- Adjusted height to leave space for input -->
-          <v-col cols="6" class="d-flex flex-column no-padding">
-            <div class="chat-container">
-              <v-btn @click="clearMsg">清除记录</v-btn>
+  <div class="home">
+    <div class="head">
+      <div class="title">
+        {{title}}
+      </div>
+      <div class="setting">
+        <div class="showVis">
+          <v-switch
+              v-model="isShowVis"
+              hide-details
+              inset
+              :label="isShowVis ? 'Visible' : 'Hidden'"
+              @change="handleVisibilityChange"
+          ></v-switch>
+        </div>
+<!--        <div class="config">-->
+<!--          <v-btn icon>-->
+<!--            <v-icon>midi-cog</v-icon>-->
+<!--          </v-btn>-->
+<!--        </div>-->
+      </div>
+    </div>
+    <div class="container">
+      <div class="left">
+        <div class="preview">
+<!--          <div class="scrollable">-->
+            <preview class="scrollable" :is-show-vis="isShowVis" :htmlContent="currentCase.generatedCode">
+            </preview>
+<!--          </div>-->
+<!--          <div class="scrollable">-->
+            <preview class="scrollable" :is-show-vis="isShowVis" :htmlContent="currentCase.groundTruth">
+            </preview>
+<!--          </div>-->
 
-              <div class="chat" style="flex: 1; overflow-y: auto;">
-                <code_chat :chat-list="state.msgList" :sys-avatar="sys"
-                           :user-avatar="user"
-                ></code_chat>
-              </div>
-              <div class="input">
-                <v-text-field
-                    v-model="input"
-                    min-width="20em"
-                    @keydown.enter="send"
-                    class="ma-0 pa-0"
-                    style="margin-top: 10px;"
-                >
-                  <template v-slot:append>
-                    <v-btn @click="send">发送</v-btn>
-                  </template>
-                </v-text-field>
-              </div>
-            </div>
+        </div>
+        <div class="output">
+          <Output :console-output="currentCase.consoleOutput" :evaluator-output="currentCase.evaluatorEvaluation">
 
-          </v-col>
-          <v-col cols="6" class="no-padding">
+          </Output>
+        </div>
+      </div>
+    <div class="right">
+        <config :case-list="caseList" @start="handleGenStart" @end="handleSeGenEnd" @getNewCase="setCurrentCase"></config>
+      </div>
+    </div>
 
-          </v-col>
-        </v-row>
-      </v-container>
-<!--    </v-main>-->
-  </v-layout>
+    <v-snackbar
+        v-model="info.snackbar"
+        :timeout="info.timeout"
+    >
+      {{ info.message }}
+
+      <template v-slot:actions>
+        <v-btn
+            color="blue"
+            variant="text"
+            @click="info.snackbar = false"
+        >
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
+
+  </div>
+
 </template>
 
+
 <script>
-import {onMounted, reactive, ref, toRefs} from "vue";
-import {getCodeStream} from "@/api/api.js";
-import {MSG_LIST, SysMsgClass, UserMsgClass} from "@/view/config.js";
-import storage from "@/view/store.js";
-import sys from '@/assets/sys.png'
-import code_chat from "@/components/code_chat/index.vue";
-import user from '@/assets/user.png'
-// import {VInput} from 'vuetify/lib/components/VInput/index'
+import preview from "@/components/preview/index.vue";
+import config from "@/components/config/index.vue";
+import output from "@/components/output/index.vue"
+import axios from "axios";
+import {onMounted, reactive, ref} from "vue";
+import {getAllCase, getEvalResult} from "@/api/api.js";
+import {appConfig} from "@/view/config.js";
 export default {
   name: "home",
   components: {
-    code_chat
-// VInput
+    preview,
+    config,
+    Output:output
   },
   setup() {
-    let code = ref('')
-    let input=ref('')
-    const state=reactive({
-      msgList:[]
+    const caseList=ref([])
+    const info=reactive({
+      message: '',
+      timeout: 3000,
+      snackbar: false
     })
+    let isShowVis=ref(false)
+    const currentCase=reactive({
+      evalId:0,
+      prompt: '',
+      groundTruth: 'groundTruth:',
+      generatedCode:'generatedCode:',
 
+      // fileName: null,
+      evaluatorPrompt: appConfig.evaluator_prompt,
+      generator:'',
+      evaluator:'',
+      evaluatorEvaluation:'',
+      consoleOutput: '',
+      workflow:{
+        inquiryExpansion:false,
+        rag:false,
+        iterativeLoop:false,
+      },
+      evalUser:appConfig.eval_user,
+      score:'',
+      manualEvaluation:[],
+      options:''
 
-
-    //将消息插入消息列表
-    function setSysMsgList(content){
-      // code.value=msg
-      if(state.msgList===null)
-        state.msgList=[]
-      state.msgList.push(SysMsgClass(content))
-      storage.set(MSG_LIST,state.msgList)
+    })
+    const resetCurrentCase=(obj)=>{
+      currentCase.evalId=obj['eval_id']
+      currentCase.score=obj['score']
+      currentCase.evalId=obj['eval_id']
+      currentCase.generatedCode=obj['generated_code']
+      currentCase.manualEvaluation=obj['manual_evaluation']
+      currentCase.options=obj['options']
+      currentCase.evaluatorEvaluation=obj['evaluator_evaluation']
     }
-    function setUserMsgList(content){
-      // code.value=msg
-      // console.log('打印消息列表：',state)
-      if(state.msgList===null)
-        state.msgList=[]
-      state.msgList.push(UserMsgClass(content))
-      storage.set(MSG_LIST,state.msgList)
+    const handleGenStart= (res)=>{
+      // 创建一个读取器
+      // resetCurrentCase(res)
+      // currentCase.generatedCode=res.generatedCode
+      console.log('currentGeneratedCode',res)
     }
+    const handleSeGenEnd= (res)=>{
+      // 创建一个读取器
+      resetCurrentCase(res)
 
-    /**
-     * 发送用户查询
-     * @param userInput
-     */
-    function sendQuery(userInput) {
-      getCodeStream({input: userInput},(r)=>{
-        console.log('模型输出打印',r.event.target.responseText)
-        // setSysMsgList(r.event.target.responseText)
-      }).then(r=>{
+      currentCase.generatedCode=res['generated_code']
+      // console.log('generatedCode',currentCase.generatedCode)
+      getEvalResult(currentCase).then(res=>{
+        // print('evalution'+res.data)
+        console.log('evaluation',res.data)
+        currentCase.score=res.data['score']
+        currentCase.evaluatorEvaluation=res.data['evaluator_evaluation']
+        info.message='evaluation end'
+        info.snackbar=true
+      })
 
-        // console.log('getCodeStream函数返回结果打印',r)
-        setSysMsgList(r.data)
-
+    }
+    const setCurrentCase=(caseItem)=>{
+      currentCase.prompt=caseItem.prompt
+      currentCase.groundTruth=caseItem.groundTruth
+      currentCase.generator=caseItem.generator
+      currentCase.evaluator=caseItem.evaluator
+      currentCase.evalUser=caseItem.evalUser
+      currentCase.evaluatorPrompt=caseItem.evaluatorPrompt
+      currentCase.workflow=caseItem.workflow
+      // currentCase.currentGeneratedCode=currentGeneratedCode.value
+    }
+    const init = () => {
+      getAllCase().then(res=>{
+        // console.log('caseList',res)
+        caseList.value.push(...res.data)
       })
     }
-    function send(){
-      setUserMsgList(input.value)
-      sendQuery(input.value)
-      input.value=''
-    }
-    function loadMessage(){
-      state.msgList=storage.get(MSG_LIST)
-    }
-    function clearMsg(){
-      state.msgList=[]
-      storage.set(MSG_LIST,state.msgList)
-    }
-
-    onMounted(() => {
-      loadMessage()
-
-      //渲染msgList
-
-      // sendQuery('你好')
+    const handleVisibilityChange = (value) => {
+      console.log("Visibility changed:", value,value.target.checked);
+      // isShowVis.value=!value.target.checked
+      // 在这里可以添加其他逻辑，例如更新组件显示状态
+    };
+    onMounted(()=>{
+      init()
     })
-
-
     return {
-      code,input,send,state,
-      sys,
-      user,
-      clearMsg
-    }
-
+      title: 'Vtkjs Evaluator',
+      caseList,
+      handleGenStart,
+      handleSeGenEnd,
+      setCurrentCase,
+      currentCase,
+      info,
+      isShowVis,
+      handleVisibilityChange
+    };
   }
 }
 </script>
 
 <style scoped>
-
-/* 聊天区域和输入区域的总高度应等于视口高度减去应用栏的高度 */
-.chat-container {
+.home {
+  height: 100vh;
+  width: 100vw;
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 100vh 是视口高度，48px 是应用栏的高度 */
+  justify-content: space-between;
+  /*align-items: center;*/
+}
+.head{
+  height: 10vh;
+  width: 100vw;
+  display: flex;
+  justify-content: space-between; /* 确保两端对齐 */
+  align-items: center; /* 垂直居中 */
+  padding: 10px;
+  background-color: #f0f0f0;
 }
 
-.chat {
-  flex: 1; /* 使得聊天区域填充剩余空间 */
-  overflow-y: auto; /* 启用垂直滚动 */
+.container {
+  height: 90vh;
+  display: flex;
+  /*justify-content: space-around;*/
+  /*flex: 10 2 auto;*/
+  padding: 10px;
 }
 
-.input{
-  width: 100%;
-  height: 60px; /* 假设输入区域的高度为 60px */
-  position: relative; /* Changed from absolute to relative */
-  bottom: 0; /* Removed the bottom margin */
+.left, .right {
+  padding: 10px;
+  overflow-y: scroll;
 }
-.chat{
-  width: 100%;
-  /*height: 100%;*/
-  overflow-y: auto; /* Added to enable scrolling */
+.left{
+  flex: 10;
+}
+.right{
+  flex: 2;
+}
 
+.preview{
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
 }
-.no-padding {
-  padding: 0 !important;
+.scrollable {
+  overflow-y: auto; /* 垂直方向溢出时滚动 */
+  max-height: 80vh; /* 设置最大高度，超出部分滚动 */
+  border: 1px solid #ccc; /* 可选：添加边框以更好地区分内容 */
+  padding: 10px; /* 可选：添加内边距 */
+}
+.title{
+  flex: 9;
+}
+.head .setting {
+  flex:1;
+  display: flex;
+  justify-content: space-between;
 }
 
 </style>
