@@ -1,61 +1,127 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VTK.js Sphere Rendering</title>
-    <script src="https://unpkg.com/vtk.js"></script>
+    <title>3D Geometric Shapes Explorer</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #vtkContainer {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
 </head>
+
 <body>
-<div id="vtkContainer" style="width: 512px; height: 512px;"></div>
-<script>
-    // 导入所需的VTK.js模块
-    const vtkFullScreenRenderWindow = vtk.Rendering.Misc.vtkFullScreenRenderWindow;
-    const vtkSphereSource = vtk.Filters.Sources.vtkSphereSource;
-    const vtkActor = vtk.Rendering.Core.vtkActor;
-    const vtkMapper = vtk.Rendering.Core.vtkMapper;
-    const vtkImageWriter = vtk.IO.Misc.vtkImageWriter;
+    <div id="vtkContainer"></div>
+    <script src="https://unpkg.com/vtk.js"></script>
+    <script>
+        // Import necessary VTK modules
+        const vtkFullScreenRenderWindow = vtk.Rendering.Misc.vtkFullScreenRenderWindow;
+        const vtkActor = vtk.Rendering.Core.vtkActor;
+        const vtkMapper = vtk.Rendering.Core.vtkMapper;
+        const vtkConeSource = vtk.Filters.Sources.vtkConeSource;
+        const vtkSphereSource = vtk.Filters.Sources.vtkSphereSource;
+        const vtkCylinderSource = vtk.Filters.Sources.vtkCylinderSource;
+        const vtkCubeSource = vtk.Filters.Sources.vtkCubeSource;
 
-    // 创建全屏渲染窗口
-    const fullScreenRenderer = vtkFullScreenRenderWindow.newInstance({
-        rootContainer: document.querySelector('#vtkContainer'),
-        background: [0, 0, 0], // 设置背景颜色为黑色
-    });
-    const renderer = fullScreenRenderer.getRenderer();
-    const renderWindow = fullScreenRenderer.getRenderWindow();
+        // 添加页面加载完成事件监听
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('页面加载完成');
+            console.log('VTK.js版本:', vtk.VERSION);
+            console.log('渲染容器尺寸:', {
+                width: document.querySelector('#vtkContainer').clientWidth,
+                height: document.querySelector('#vtkContainer').clientHeight
+            });
+        });
 
-    // 创建球体源
-    const sphereSource = vtkSphereSource.newInstance({
-        radius: 1.0, // 设置球体半径
-        thetaResolution: 32, // 设置球体的经度分辨率
-        phiResolution: 32, // 设置球体的纬度分辨率
-    });
+        // Create a full-screen render window
+        const renderWindow = vtkFullScreenRenderWindow.newInstance({
+            rootContainer: document.body,
+            container: document.querySelector('#vtkContainer'),
+        });
+        const renderer = renderWindow.getRenderer();
+        const renderWindowInteractor = renderWindow.getInteractor();
 
-    // 创建映射器并将球体源连接到映射器
-    const mapper = vtkMapper.newInstance();
-    mapper.setInputConnection(sphereSource.getOutputPort());
+        // Function to create and add a shape to the scene
+        // 修改 createShape 函数，添加日志
+        function createShape(source) {
+            const mapper = vtkMapper.newInstance();
+            mapper.setInputConnection(source.getOutputPort());
 
-    // 创建演员并将映射器连接到演员
-    const actor = vtkActor.newInstance();
-    actor.setMapper(mapper);
+            const actor = vtkActor.newInstance();
+            actor.setMapper(mapper);
 
-    // 将演员添加到渲染器
-    renderer.addActor(actor);
+            renderer.addActor(actor);
+            renderer.resetCamera();
+            renderWindow.render();
+            
+            // 添加形状创建日志
+            console.log('创建新形状:', {
+                type: source.getClassName(),
+                bounds: actor.getBounds(),
+                position: actor.getPosition()
+            });
+        }
 
-    // 重置相机以显示整个球体
-    renderer.resetCamera();
+        // Function to log shape properties
+        function logShapeProperties(source) {
+            console.log('Shape Properties:', source.get());
+        }
 
-    // 渲染场景
-    renderWindow.render();
+        // Create a cone
+        const coneSource = vtkConeSource.newInstance();
+        coneSource.setResolution(20);
+        createShape(coneSource);
+        logShapeProperties(coneSource);
 
-    // 保存渲染的图像为512x512的PNG文件
-    const imageWriter = vtkImageWriter.newInstance();
-    imageWriter.setInputConnection(renderWindow.getImage(512, 512));
-    imageWriter.setFileName('IO-Screenshot.png');
-    imageWriter.write();
+        // Create a sphere
+        const sphereSource = vtkSphereSource.newInstance();
+        sphereSource.setThetaResolution(30);
+        sphereSource.setPhiResolution(30);
+        createShape(sphereSource);
+        logShapeProperties(sphereSource);
 
-    // 提示用户图像已保存
-    console.log('Rendered image saved as IO-Screenshot.png');
-</script>
+        // Create a cylinder
+        const cylinderSource = vtkCylinderSource.newInstance();
+        cylinderSource.setResolution(30);
+        createShape(cylinderSource);
+        logShapeProperties(cylinderSource);
+
+        // Create a cube
+        const cubeSource = vtkCubeSource.newInstance();
+        cubeSource.setXLength(1);
+        cubeSource.setYLength(1);
+        cubeSource.setZLength(1);
+        createShape(cubeSource);
+        logShapeProperties(cubeSource);
+
+        console.log('ifream console.log', renderer.getActors(), renderer.getViewProps())
+        // Add interactivity to the render window
+        renderWindowInteractor.setInteractorStyle(vtk.Interaction.Style.vtkInteractorStyleTrackballCamera.newInstance());
+
+        // Handle window resize for responsive design
+        window.addEventListener('resize', () => {
+            renderWindow.resize();
+        });
+
+        // 在所有形状创建完成后添加场景信息日志
+        console.log('场景渲染完成');
+        console.log('场景信息:', {
+            actorsCount: renderer.getActors().length,
+            cameraPosition: renderer.getActiveCamera().getPosition(),
+            rendererSize: renderer.getSize()
+        });
+    </script>
 </body>
+
 </html>

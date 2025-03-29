@@ -1,5 +1,8 @@
 <template>
-  <div class="list-container">
+
+  <div>
+
+    <div class="list-container">
     <v-list>
       <v-list-item v-for="(item, index) in caseList" class="item" :key="index">
         <v-list-item-content style="text-align: left">
@@ -18,12 +21,7 @@
   </div>
   <div class="upload">
     <v-dialog v-model="showDialog" max-width="800px">
-      <template v-slot:activator="{ props: activatorProps }">
-        <v-btn icon="mdi-plus" color="blue" @click="showAddDialog">
-          <v-icon>mdi-plus</v-icon>
-        </v-btn>
-
-      </template>
+      <template v-slot:activator></template>
       <v-card>
         <v-card-title>create new case</v-card-title>
        <v-card-item>
@@ -94,26 +92,36 @@
         </div>
       </div>
     </v-dialog>
+    <v-btn icon="mdi-plus" color="blue" @click="showAddDialog">
+          <v-icon>mdi-plus</v-icon>
+        </v-btn>
 
   </div>
-
-  <v-snackbar
+  <div>
+    <v-snackbar
       v-model="info.snackbar"
       :timeout="info.timeout"
   >
     {{ info.message }}
 
     <template v-slot:actions>
-      <v-btn
+      <div>
+        <v-btn
           color="blue"
           variant="text"
           @click="info.snackbar = false"
       >
         Close
       </v-btn>
+      </div>
     </template>
   </v-snackbar>
 
+  </div>
+
+  </div>
+
+ 
   <!-- 弹窗组件 -->
 </template>
 
@@ -154,6 +162,8 @@ export default {
       evaluator:null,
       score:'',
       evaluatorEvaluation:'',
+      errorCount: 0,
+      maxIterations: 3,
       workflow:{
         inquiryExpansion:false,
         rag:false,
@@ -179,12 +189,19 @@ export default {
     const handleUpload = () => {
       // 处理上传逻辑
       // 获取需要校验的字段
-      const { prompt, groundTruth, generator, evaluator } = newCase.value;
+      const { prompt, groundTruth, generator, evaluator, maxIterations } = newCase.value;
       // 字段校验逻辑
       if (!prompt || prompt.trim() === '') {
         info.message = 'prompt 不能为空';
         info.snackbar = true;
         console.error('prompt 不能为空');
+        return;
+      }
+      
+      if (!maxIterations || maxIterations < 1) {
+        info.message = '最大迭代次数必须大于0';
+        info.snackbar = true;
+        console.error('最大迭代次数必须大于0');
         return;
       }
 
