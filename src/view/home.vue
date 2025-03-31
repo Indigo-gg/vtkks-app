@@ -11,6 +11,10 @@
           <v-switch v-model="isShowVis" hide-details inset :label="isShowVis ? 'Visible' : 'Hidden'"
             @change="handleVisibilityChange"></v-switch>
         </div>
+        <div class="enableEval">
+          <v-switch v-model="isEnableEval" hide-details inset :label="isEnableEval ? 'evl open' : 'evl close'"
+            @change="handleEvalChange"></v-switch>
+        </div>
       </div>
     </div>
     <div class="container">
@@ -95,6 +99,12 @@ export default {
       snackbar: false
     })
     let isShowVis = ref(false)
+    const isEnableEval = ref(false); // 默认关闭评估
+
+    const handleEvalChange = (value) => {
+      console.log("Evaluation enabled:", value.target.checked);
+      isEnableEval.value = value.target.checked;
+    };
     const isExporting = ref(false);
     const currentCase = reactive({
       evalId: 0,
@@ -132,215 +142,265 @@ export default {
     }
     const isIterating = ref(false);
 
-    const handleSeGenEnd = (res) => {
-      currentCase.consoleOutput = []
-      if (currentCase.workflow.iterativeLoop) {
-        currentCase.errorCount = 0
-        currentCase.maxIterations = 3
-      }
-      resetCurrentCase(res)
-      isShowVis.value = true;
-
-      const hasError = res.error || (res.options && res.options.error_log) || currentCase.consoleOutput.some(log => log.type === 'error');
-
-      if (hasError && currentCase.workflow.iterativeLoop) {
-        isIterating.value = true;  // 开始迭代
-        if (currentCase.errorCount < currentCase.maxIterations) {
-          currentCase.errorCount++
-          info.message = `代码存在错误，正在进行第${currentCase.errorCount}次优化...`
-          info.snackbar = true
-
-          let errors = []
-          if (res.error) {
-            errors.push({ type: 'error', message: res.error })
-          }
-          if (res.options && res.options.error_log) {
-            errors.push({ type: 'error', message: res.options.error_log })
-          }
-          if (currentCase.consoleOutput.length > 0) {
-            errors.push(...currentCase.consoleOutput.filter(log => log.type === 'error'))
-          }
-
-          // 调用错误分析接口
-          handleCodeError({
-            errors: errors,
-            current_code: currentCase.generatedCode
-          }).then(analysisRes => {
-            if (analysisRes.data.errors && analysisRes.data.errors.length > 0) {
-              // 使用新的代码继续迭代
-              currentCase.generatedCode = analysisRes.data.new_code
-              info.message = `正在应用优化建议...`
-              info.snackbar = true
-              handleSeGenEnd({
-                ...res,
-                generated_code: analysisRes.data.new_code
-              })
-            } else {
-              isIterating.value = false;  // 迭代完成
-              info.message = `代码已优化完成`
-              info.snackbar = true
-              // 进入评估环节
-              getEvalResult(currentCase).then(evalRes => {
-                currentCase.score = evalRes.data['score']
-                currentCase.evaluatorEvaluation = evalRes.data['evaluator_evaluation']
-              })
-            }
-          })
-          return
-        } else {
-          isIterating.value = false;  // 达到最大迭代次数
-          info.message = '已达到最大迭代次数'
-          info.snackbar = true
-        }
-      } else {
-        isIterating.value = false;  // 无需迭代
-        // 如果没有错误或未开启迭代循环或已达到最大迭代次数，进入评估环节
-        getEvalResult(currentCase).then(res => {
-          console.log('evaluation', res.data)
-          currentCase.score = res.data['score']
-          currentCase.evaluatorEvaluation = res.data['evaluator_evaluation']
-          info.message = '评估完成'
-          info.snackbar = true
-        })
-      }
-    }
-    const setCurrentCase = (caseItem) => {
-      currentCase.prompt = caseItem.prompt
-      currentCase.groundTruth = caseItem.groundTruth
-      currentCase.generator = caseItem.generator
-      currentCase.evaluator = caseItem.evaluator
-      currentCase.evalUser = caseItem.evalUser
-      currentCase.evaluatorPrompt = caseItem.evaluatorPrompt
-      currentCase.workflow = caseItem.workflow
-      // currentCase.currentGeneratedCode=currentGeneratedCode.value
-    }
-
-    const handleConsoleOutput = (output) => {
-
-      nextTick(() => {
-        // 在这里处理控制台输出
-        console.log('handleConsoleOutput', currentCase.consoleOutput)
-        currentCase.consoleOutput = output
-      })
-      // 在这里处理控制台输出
-      // console.log('handleConsoleOutput',currentCase.consoleOutput)
-      // currentCase.consoleOutput=output
-    };
-    const init = () => {
-      getAllCase().then(res => {
-        // console.log('caseList',res)
-        caseList.value.push(...res.data)
-      })
-    }
-    const handleVisibilityChange = (value) => {
-      console.log("Visibility changed:", value.target.checked);
-      isShowVis.value = value.target.checked
-      // 在这里可以添加其他逻辑，例如更新组件显示状态
-    };
-    onMounted(() => {
-      init()
-    })
-    const isFullScreen = ref(false);
-    const generatedPreview = ref(null);
-    const truthPreview = ref(null);
-
-    const toggleFullScreen = async (type) => {
-      const container = type === 'generated'
-        ? generatedPreview.value.$el
-        : truthPreview.value.$el;
-
-      if (!document.fullscreenElement) {
-        await container.requestFullscreen();
-        isFullScreen.value = true;
-      } else {
-        await document.exitFullscreen();
-        isFullScreen.value = false;
-      }
-    };
-    const exportResults = async () => {
+    const handleSeGenEnd = async (res) => {
       try {
-        isExporting.value = true;
+        currentCase.consoleOutput = []
+        if (currentCase.workflow.iterativeLoop) {
+          currentCase.errorCount = 0
+          currentCase.maxIterations = 3
+        }
+        resetCurrentCase(res)
+        isShowVis.value = true;
 
-        // 确保预览组件已经渲染完成
+        // 等待预览组件渲染完成
         await nextTick();
 
-        // 获取预览组件实例
-        const generatedPreviewInstance = generatedPreview.value;
-        const truthPreviewInstance = truthPreview.value;
+        // 等待两个 iframe 加载完成
+        const generatedPreviewEl = generatedPreview.value.$el.querySelector('.preview-content');
+        const truthPreviewEl = truthPreview.value.$el.querySelector('.preview-content');
 
-        // 获取预览组件中的实际内容容器
-        const generatedContent = generatedPreviewInstance.$el.querySelector('.preview-content');
-        const truthContent = truthPreviewInstance.$el.querySelector('.preview-content');
-
-        if (!generatedContent || !truthContent) {
-          throw new Error('无法获取预览内容');
-        }
-
-        // 等待 iframe 加载完成
         await Promise.all([
-          new Promise(resolve => {
-            if (generatedContent.contentDocument.readyState === 'complete') {
+          new Promise((resolve) => {
+            if (generatedPreviewEl && generatedPreviewEl.contentDocument.readyState === 'complete') {
               resolve();
             } else {
-              generatedContent.onload = resolve;
+              generatedPreviewEl.onload = resolve;
             }
           }),
-          new Promise(resolve => {
-            if (truthContent.contentDocument.readyState === 'complete') {
+          new Promise((resolve) => {
+            if (truthPreviewEl && truthPreviewEl.contentDocument.readyState === 'complete') {
               resolve();
             } else {
-              truthContent.onload = resolve;
+              truthPreviewEl.onload = resolve;
             }
           })
         ]);
 
-        const result = await ExportUtils.exportResults(
-          currentCase,
-          {
-            generatedPreviewEl: generatedContent.contentDocument.body,
-            truthPreviewEl: truthContent.contentDocument.body
+        // 额外等待一段时间确保 VTK.js 初始化完成
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // 现在检查错误
+        const hasError = res.error ||
+            (res.options && res.options.error_log) ||
+            currentCase.consoleOutput.some(log => log.type === 'error');
+
+        console.log('hasError', hasError, 'currentCase.workflow.iterativeLoop', currentCase.workflow.iterativeLoop,
+            'currentCase.errorCount', currentCase.errorCount, 'currentCase.maxIterations', currentCase.maxIterations);
+
+        if (hasError && currentCase.workflow.iterativeLoop) {
+          isIterating.value = true;  // 开始迭代
+          if (currentCase.errorCount < currentCase.maxIterations) {
+            currentCase.errorCount++
+            info.message = `代码存在错误，正在进行第${currentCase.errorCount}次优化...`
+            info.snackbar = true
+
+            let errors = []
+            if (res.error) {
+              errors.push({type: 'error', message: res.error})
+            }
+            if (res.options && res.options.error_log) {
+              errors.push({type: 'error', message: res.options.error_log})
+            }
+            if (currentCase.consoleOutput.length > 0) {
+              errors.push(...currentCase.consoleOutput.filter(log => log.type === 'error'))
+            }
+
+            // 调用错误分析接口
+            handleCodeError({
+              errors: errors,
+              current_code: currentCase.generatedCode
+            }).then(analysisRes => {
+              if (analysisRes.data.errors && analysisRes.data.errors.length > 0) {
+                // 使用新的代码继续迭代
+                currentCase.generatedCode = analysisRes.data.new_code
+                info.message = `正在应用优化建议...`
+                info.snackbar = true
+                handleSeGenEnd({
+                  ...res,
+                  generated_code: analysisRes.data.new_code
+                })
+              } else {
+                isIterating.value = false;  // 迭代完成
+                info.message = `代码已优化完成`
+                info.snackbar = true
+                // 根据开关状态决定是否进行评估
+                if (isEnableEval.value) {
+                  getEvalResult(currentCase).then(evalRes => {
+                    currentCase.score = evalRes.data['score'];
+                    currentCase.evaluatorEvaluation = evalRes.data['evaluator_evaluation'];
+                  });
+                }
+              }
+            })
+            return
+          } else {
+            isIterating.value = false;  // 达到最大迭代次数
+            info.message = '已达到最大迭代次数'
+            info.snackbar = true
           }
-        );
-
-        info.message = result.message;
-        info.snackbar = true;
+        } else {
+          isIterating.value = false;  // 无需迭代
+          // 如果没有错误或未开启迭代循环或已达到最大迭代次数，进入评估环节
+          // 根据开关状态决定是否进行评估
+          if (isEnableEval.value) {
+            getEvalResult(currentCase).then(res => {
+              console.log('evaluation', res.data);
+              currentCase.score = res.data['score'];
+              currentCase.evaluatorEvaluation = res.data['evaluator_evaluation'];
+              info.message = '评估完成';
+              info.snackbar = true;
+            });
+          } else {
+            info.message = '已跳过评估';
+            info.snackbar = true;
+          }
+        }
       } catch (error) {
-        console.error('导出错误:', error);
-        info.message = '导出失败: ' + error.message;
+        console.error('处理生成结果时出错:', error);
+        info.message = '处理生成结果时出错';
         info.snackbar = true;
-      } finally {
-        isExporting.value = false;
+        isIterating.value = false;
       }
-    };
+    }
+      const setCurrentCase = (caseItem) => {
+        currentCase.prompt = caseItem.prompt
+        currentCase.groundTruth = caseItem.groundTruth
+        currentCase.generator = caseItem.generator
+        currentCase.evaluator = caseItem.evaluator
+        currentCase.evalUser = caseItem.evalUser
+        currentCase.evaluatorPrompt = caseItem.evaluatorPrompt
+        currentCase.workflow = caseItem.workflow
+        // currentCase.currentGeneratedCode=currentGeneratedCode.value
+      }
 
-    // 监听全屏变化
-    onMounted(() => {
-      document.addEventListener('fullscreenchange', () => {
-        isFullScreen.value = !!document.fullscreenElement;
+      const handleConsoleOutput = (output) => {
+
+        nextTick(() => {
+          // 在这里处理控制台输出
+          console.log('handleConsoleOutput', currentCase.consoleOutput)
+          currentCase.consoleOutput = output
+        })
+        // 在这里处理控制台输出
+        // console.log('handleConsoleOutput',currentCase.consoleOutput)
+        // currentCase.consoleOutput=output
+      };
+      const init = () => {
+        getAllCase().then(res => {
+          // console.log('caseList',res)
+          caseList.value.push(...res.data)
+        })
+      }
+      const handleVisibilityChange = (value) => {
+        console.log("Visibility changed:", value.target.checked);
+        isShowVis.value = value.target.checked
+        // 在这里可以添加其他逻辑，例如更新组件显示状态
+      };
+      onMounted(() => {
+        init()
+      })
+      const isFullScreen = ref(false);
+      const generatedPreview = ref(null);
+      const truthPreview = ref(null);
+
+      const toggleFullScreen = async (type) => {
+        const container = type === 'generated'
+          ? generatedPreview.value.$el
+          : truthPreview.value.$el;
+
+        if (!document.fullscreenElement) {
+          await container.requestFullscreen();
+          isFullScreen.value = true;
+        } else {
+          await document.exitFullscreen();
+          isFullScreen.value = false;
+        }
+      };
+      const exportResults = async () => {
+        try {
+          isExporting.value = true;
+
+          // 确保预览组件已经渲染完成
+          await nextTick();
+
+          // 获取预览组件实例
+          const generatedPreviewInstance = generatedPreview.value;
+          const truthPreviewInstance = truthPreview.value;
+
+          // 获取预览组件中的实际内容容器
+          const generatedContent = generatedPreviewInstance.$el.querySelector('.preview-content');
+          const truthContent = truthPreviewInstance.$el.querySelector('.preview-content');
+
+          if (!generatedContent || !truthContent) {
+            throw new Error('无法获取预览内容');
+          }
+
+          // 等待 iframe 加载完成
+          await Promise.all([
+            new Promise(resolve => {
+              if (generatedContent.contentDocument.readyState === 'complete') {
+                resolve();
+              } else {
+                generatedContent.onload = resolve;
+              }
+            }),
+            new Promise(resolve => {
+              if (truthContent.contentDocument.readyState === 'complete') {
+                resolve();
+              } else {
+                truthContent.onload = resolve;
+              }
+            })
+          ]);
+
+          const result = await ExportUtils.exportResults(
+            currentCase,
+            {
+              generatedPreviewEl: generatedContent.contentDocument.body,
+              truthPreviewEl: truthContent.contentDocument.body
+            }
+          );
+
+          info.message = result.message;
+          info.snackbar = true;
+        } catch (error) {
+          console.error('导出错误:', error);
+          info.message = '导出失败: ' + error.message;
+          info.snackbar = true;
+        } finally {
+          isExporting.value = false;
+        }
+      };
+
+      // 监听全屏变化
+      onMounted(() => {
+        document.addEventListener('fullscreenchange', () => {
+          isFullScreen.value = !!document.fullscreenElement;
+        });
       });
-    });
 
-    // 在 return 中添加新的属性
-    return {
-      title: 'Vtkjs Evaluator',
-      caseList,
-      handleSeGenEnd,
-      setCurrentCase,
-      currentCase,
-      info,
-      isShowVis,
-      handleVisibilityChange,
-      handleConsoleOutput,
-      // 添加全屏相关的属性
-      isFullScreen,
-      generatedPreview,
-      truthPreview,
-      toggleFullScreen,
-      isExporting,
-      exportResults
-    };
+      // 在 return 中添加新的属性
+      return {
+        title: 'Vtkjs Evaluator',
+        caseList,
+        handleSeGenEnd,
+        setCurrentCase,
+        currentCase,
+        info,
+        isShowVis,
+        handleVisibilityChange,
+        handleConsoleOutput,
+        // 添加全屏相关的属性
+        isFullScreen,
+        generatedPreview,
+        truthPreview,
+        toggleFullScreen,
+        isExporting,
+        exportResults,
+        isEnableEval,
+        handleEvalChange,
+      };
+    }
   }
-}
 </script>
 
 <style scoped>
@@ -418,7 +478,7 @@ export default {
 }
 
 .head .setting {
-  flex: 1;
+  flex: 3;
   display: flex;
   gap: 16px;
   align-items: center;

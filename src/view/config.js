@@ -46,7 +46,7 @@ Please implement the code strictly according to the specific requirements of the
 <QUESTION>__QUESTION__</QUESTION>
 
 `,
-    testDes: 'create an interactive webpage for exploring various 3D geometric shapes with customizable properties and responsive design using vtk.js library',
+    testDes: 'Generate a 3D Gaussian surface dataset and plot an interactive surface map with colormapping.',
     testCode: `
 <\!DOCTYPE html>
 <html lang="en">
