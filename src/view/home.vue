@@ -99,7 +99,7 @@ export default {
       snackbar: false
     })
     let isShowVis = ref(false)
-    const isEnableEval = ref(false); // 默认关闭评估
+    const isEnableEval = ref(true); // 默认关闭评估
 
     const handleEvalChange = (value) => {
       console.log("Evaluation enabled:", value.target.checked);
@@ -155,26 +155,26 @@ export default {
         // 等待预览组件渲染完成
         await nextTick();
 
-        // 等待两个 iframe 加载完成
-        const generatedPreviewEl = generatedPreview.value.$el.querySelector('.preview-content');
-        const truthPreviewEl = truthPreview.value.$el.querySelector('.preview-content');
-
-        await Promise.all([
-          new Promise((resolve) => {
-            if (generatedPreviewEl && generatedPreviewEl.contentDocument.readyState === 'complete') {
-              resolve();
-            } else {
-              generatedPreviewEl.onload = resolve;
-            }
-          }),
-          new Promise((resolve) => {
-            if (truthPreviewEl && truthPreviewEl.contentDocument.readyState === 'complete') {
-              resolve();
-            } else {
-              truthPreviewEl.onload = resolve;
-            }
-          })
-        ]);
+        // // 等待两个 iframe 加载完成
+        // const generatedPreviewEl = generatedPreview.value.$el.querySelector('.preview-content');
+        // const truthPreviewEl = truthPreview.value.$el.querySelector('.preview-content');
+        //
+        // await Promise.all([
+        //   new Promise((resolve) => {
+        //     if (generatedPreviewEl && generatedPreviewEl.contentDocument.readyState === 'complete') {
+        //       resolve();
+        //     } else {
+        //       generatedPreviewEl.onload = resolve;
+        //     }
+        //   }),
+        //   new Promise((resolve) => {
+        //     if (truthPreviewEl && truthPreviewEl.contentDocument.readyState === 'complete') {
+        //       resolve();
+        //     } else {
+        //       truthPreviewEl.onload = resolve;
+        //     }
+        //   })
+        // ]);
 
         // 额外等待一段时间确保 VTK.js 初始化完成
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -334,23 +334,23 @@ export default {
             throw new Error('无法获取预览内容');
           }
 
-          // 等待 iframe 加载完成
-          await Promise.all([
-            new Promise(resolve => {
-              if (generatedContent.contentDocument.readyState === 'complete') {
-                resolve();
-              } else {
-                generatedContent.onload = resolve;
-              }
-            }),
-            new Promise(resolve => {
-              if (truthContent.contentDocument.readyState === 'complete') {
-                resolve();
-              } else {
-                truthContent.onload = resolve;
-              }
-            })
-          ]);
+          // // 等待 iframe 加载完成
+          // await Promise.all([
+          //   new Promise(resolve => {
+          //     if (generatedContent.contentDocument.readyState === 'complete') {
+          //       resolve();
+          //     } else {
+          //       generatedContent.onload = resolve;
+          //     }
+          //   }),
+          //   new Promise(resolve => {
+          //     if (truthContent.contentDocument.readyState === 'complete') {
+          //       resolve();
+          //     } else {
+          //       truthContent.onload = resolve;
+          //     }
+          //   })
+          // ]);
 
           const result = await ExportUtils.exportResults(
             currentCase,
