@@ -48,7 +48,7 @@ Please implement the code strictly according to the specific requirements of the
 `,
     testDes: 'please input prompt',
     testCode: 'please input ground truth',
-    models: ['deepseek-v3', 'deepseek-r1', 'deepseek-r1-distill-qwen-32b']
+    models: ['deepseek-v3', 'deepseek-r1', 'deepseek-r1-distill-qwen-32b', 'llama3.2-1b']
 }
 
 export { SysMsgClass, UserMsgClass, MSG_LIST, appConfig }
