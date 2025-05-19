@@ -122,10 +122,24 @@ export default {
 
           const content = extractHtmlCode(props.htmlContent);
           doc.open();
-          // 确保脚本在body开始处注入
-          let new_content = content.replace(/<body[^>]*>/, match => match + consoleScript);
-          doc.write(new_content);
-          doc.close();
+          // Create a basic HTML structure first
+          doc.write('<!DOCTYPE html><html><head></head><body></body></html>');
+          doc.close(); // Close the document write stream before modifying the body
+
+          // Inject the console script and the actual content into the body
+          if (doc.body) {
+            // Inject console script into head
+            const scriptElement = doc.createElement('script');
+            // Remove <script> tags from the consoleScript string before setting textContent
+            scriptElement.textContent = consoleScript.replace(/^\s*<script>\s*|\s*<\/script>\s*$/g, '');
+            doc.head.appendChild(scriptElement);
+
+            // Set the main content in the body
+            doc.body.innerHTML = content;
+          } else {
+             console.error("Iframe body not found after writing basic structure.");
+             emit('error', { type: 'error', message: 'Failed to load content: iframe body not found.' });
+          }
 
           // 清除之前的事件监听器
           const messageHandler = (event) => {
@@ -148,6 +162,12 @@ export default {
 
           window.removeEventListener('message', messageHandler);
           window.addEventListener('message', messageHandler);
+          // 新增：调试输出日志内容，便于排查日志传递问题
+          window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'console') {
+              console.log('[Preview] 收到iframe日志：', event.data);
+            }
+          });
         });
       }
     }

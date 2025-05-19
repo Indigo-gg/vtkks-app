@@ -23,6 +23,31 @@ function UserMsgClass(content) {
 }
 
 const appConfig = {
+    // self.models_deepseek = {
+    //     # "deepseek": 'deepseek-chat',
+    //     'deepseek-v3':'deepseek-v3-241226',
+    //     'deepseek-r1':'deepseek-r1-250120',
+    //     'deepseek-r1-distill-qwen-32b':'deepseek-r1-distill-qwen-32b-250120'
+    // }
+    // self.models_ollama = {
+    //     "llama3.2-1b": 'llama3.2:1b',
+    // }
+    // self.model_qwen={
+    //     "qwen3-turbo":"qwen-turbo-latest",
+    //     "qwen3-plus":"qwen-plus-latest",
+    //     "qwen3-32b":"qwen3-32b"
+    // }
+    // self.embedding_models = {
+    //     "bge": 'BAAI/bge-small-en-v1.5',
+    // }
+    models: ['deepseek-v3', 'deepseek-r1', 
+        'deepseek-r1-distill-qwen-32b', 
+        "qwen3-turbo", "qwen3-plus",
+        "qwen3-32b",'llama3.2-1b',
+        'claude-3.7-sonnet',
+            'gemini-2.5',
+            "chatGPT-4o-mini"
+    ],
     evaluator_prompt: `# Role: An expert for vtk.js and web-based scientific visualization
 # Ground truth: [GROUND_TRUTH]
 # Generated code: [GENERATED_CODE]
@@ -47,8 +72,10 @@ Please implement the code strictly according to the specific requirements of the
 
 `,
     testDes: 'please input prompt',
+    // testDes:``,
     testCode: 'please input ground truth',
-    models: ['deepseek-v3', 'deepseek-r1', 'deepseek-r1-distill-qwen-32b', 'llama3.2-1b']
+    // testCode:``,
+
 }
 
 export { SysMsgClass, UserMsgClass, MSG_LIST, appConfig }

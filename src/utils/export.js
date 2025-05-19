@@ -109,11 +109,25 @@ export const ExportUtils = {
             // 等待一段时间确保渲染完成
             await this.waitForRender(1000);
 
-            // 获取生成代码的截图
-            const generatedImage = await this.captureElement(generatedPreviewEl);
+            let generatedImage = null;
+            try {
+                // 获取生成代码的截图
+                generatedImage = await this.captureElement(generatedPreviewEl);
+            } catch (captureError) {
+                console.error('生成预览截图失败:', captureError);
+                // 将截图字段置空
+                generatedImage = null;
+            }
 
-            // 获取 ground truth 的截图
-            const truthImage = await this.captureElement(truthPreviewEl);
+            let truthImage = null;
+            try {
+                // 获取 ground truth 的截图
+                truthImage = await this.captureElement(truthPreviewEl);
+            } catch (captureError) {
+                console.error('Ground truth 截图失败:', captureError);
+                // 将截图字段置空
+                truthImage = null;
+            }
 
             // 准备导出数据
             const exportData = {

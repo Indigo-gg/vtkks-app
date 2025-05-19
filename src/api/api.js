@@ -45,6 +45,9 @@ function getAllCase() {
 function handleCodeError(data) {
     return post('/code_error', data)
 }
+function handleErrorAnalysis(data) {
+    return post('/error_analysis', data)
+}
 function handleExport(data) {
     return post('/export', data)
 }
@@ -58,6 +61,6 @@ export {
     getAllCase,
     generateCode,
     handleCodeError,
-    handleExport
-
+    handleExport,
+    handleErrorAnalysis
 }

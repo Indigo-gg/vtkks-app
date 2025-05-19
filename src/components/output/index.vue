@@ -30,6 +30,9 @@
                   </div>
                 </div>
               </v-card-text>
+              <v-card-actions>
+                <slot name="actions"></slot>
+              </v-card-actions>
             </v-card>
           </v-col>
           <v-col cols="6">
@@ -62,6 +65,10 @@ export default {
       type: String,
       required: true,
       default: ""
+    },
+    triggerErrorAnalysis: {
+      type: Function,
+      required: true
     }
   },
   setup(props) {
