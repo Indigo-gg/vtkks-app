@@ -8,11 +8,7 @@
       <!-- 移除原来的导出按钮 -->
       <div class="setting">
          <!-- 添加导出按钮 -->
-      <div class="export">
-        <v-btn icon="mdi-export" size="small" variant="text" @click="exportResults" class="export-btn" title="导出结果">
-          export
-        </v-btn>
-      </div>
+      
         <div class="showVis">
           <v-switch v-model="isShowVis" hide-details inset :label="isShowVis ? 'Visible' : 'Hidden'"
             @change="handleVisibilityChange"></v-switch>
@@ -23,6 +19,11 @@
             评估
           </v-btn>
         </div>
+        <div class="export">
+        <v-btn icon="mdi-export" size="large" variant="text" @click="exportResults" class="export-btn" title="export result">
+          export
+        </v-btn>
+      </div>
       </div>
     </div>
     <div class="container">

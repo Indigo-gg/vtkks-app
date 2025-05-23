@@ -12,12 +12,6 @@ function getCodeStream(data, load) {
 function getEvalResultStream(data, callback) {
     return postStream('/evaluate', data, callback)
 }
-function getCaseList(data) {
-    return post('/get_case_list', data)
-}
-// function getACaseCode(path){
-//     return get(path)
-// }
 function generateCodeStream(data, callback) {
     return postStream('/generateStream', data, callback)
 }
@@ -50,6 +44,10 @@ function handleErrorAnalysis(data) {
 }
 function handleExport(data) {
     return post('/export', data)
+}
+function getCaseList() {
+    return get('/get_case_list', {})
+    
 }
 export {
     getCode,

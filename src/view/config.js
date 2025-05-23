@@ -59,7 +59,13 @@ The ground truth code is provided by [Ground truth], please give a score for [Ge
 ### Response Example
 <Score>0.8</Score>
 <Explanation>The generated code is readable and correct.</Explanation> `,
+
+
+
+
     eval_user: 'test',
+
+
     generator_prompt: `Please use vtkjs to generate visualization code. The code should be in the form of a complete code wrapped only in HTML tags. Please add your thinking process as comments in the code to make it easier to understand the code logic.
 
 In the code, use \`<script src="https://unpkg.com/vtk.js"></script>\` as the library for visualization to implement the visualization function.
@@ -71,9 +77,17 @@ Please implement the code strictly according to the specific requirements of the
 <QUESTION>__QUESTION__</QUESTION>
 
 `,
+
+
+
     testDes: 'please input prompt',
+
+
+
     // testDes:``,
     testCode: 'please input ground truth',
+
+    
     // testCode:``,
 
 }

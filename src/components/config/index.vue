@@ -20,13 +20,33 @@
     </v-list>
   </div>
   <div class="upload">
-    <v-dialog v-model="showDialog" max-width="800px">
+    <v-dialog v-model="showDialog" max-width="1200px">
       <template v-slot:activator></template>
       <v-card>
         <v-card-title>create new case</v-card-title>
        <v-card-item>
          <div class="content">
-           <div class="left" style="min-width: 60%">
+          <div class="left" style="min-width: 25%">
+            <v-treeview
+              :items="treeData"
+              item-key="path"
+              item-text="name"
+              density="compact"
+              activatable
+              return-object
+              open-on-click
+              @update:activated="handleActiveChange">
+              <template v-slot:prepend="{ item }">
+              
+                <v-icon v-if="item.type === 'file'">mdi-file-document-outline</v-icon>
+                <v-icon v-else>mdi-folder</v-icon>
+              </template>
+              <template v-slot:title="{ item }">
+                {{ item.name }}
+              </template>
+            </v-treeview>
+          </div>
+           <div class="middle" style="min-width: 40%">
              <div class="input">
                <v-text-field label="prompt" v-model="newCase.prompt"></v-text-field>
              </div>
@@ -35,10 +55,9 @@
                  outlined
                  placeholder="Please paste the ground truth here. "
                  rows="15"
-                 auto-grow style="max-height: 300px; overflow-y: auto;"
              ></v-textarea>
            </div>
-           <div class="right" style="min-width: 30%">
+           <div class="right" style="min-width: 25%">
               <div class="generator">
                 <v-select
                     v-model="newCase.generator"
@@ -82,7 +101,8 @@
 
         <v-card-actions>
           <v-btn color="blue darken-1" text @click="showDialog = false">cancel</v-btn>
-          <v-btn color="blue darken-1" text @click="handleUpload">start</v-btn>
+          <!-- 绑定 loading 属性 -->
+          <v-btn color="blue darken-1" text @click="handleUpload" :loading="isLoading">start</v-btn>
         </v-card-actions>
       </v-card>
       <div class="workflow">
@@ -129,12 +149,14 @@
 import {onMounted,reactive, ref} from "vue";
 import workflow from "@/components/config/workflow.vue";
 import {appConfig} from "@/view/config.js";
-import {generateCode, generateCodeStream, getEvalResultStream} from "@/api/api.js";
-
+import {generateCode} from "@/api/api.js";
+import { getCaseList } from "../../api/api";
+import { VTreeview } from "vuetify/labs/VTreeview";
 export default {
   name: "index",
   components: {
-    workflow
+    workflow,
+    VTreeview,
   },
   props: {
     /***
@@ -148,10 +170,12 @@ export default {
       required: true
     }
   },
-  setup(props,context){
+  setup(props, context) {
     let showDialog = ref(false);
     const newCase = ref({
       // prompt: null,
+      path:null,
+      name:null,
       prompt:appConfig.testDes,
       groundTruth:appConfig.testCode,
       // groundTruth: null,
@@ -181,6 +205,128 @@ export default {
       timeout: 3000,
       snackbar: false
     });
+
+    // 添加 isLoading 状态变量
+    const isLoading = ref(false);
+
+    // 定义 treeData 响应式变量
+    const treeData = ref([]);
+
+    // 定义获取树结构数据的异步函数
+    const fetchTreeData = async () => {
+      try {
+        const response = await getCaseList();
+        // Ensure response.data is an array, otherwise provide an empty array or handle error
+        if (Array.isArray(response.data)) {
+          // Recursively remove content from file nodes
+          // const stripFileContent = (nodes) => {
+          //   return nodes.map(node => {
+          //     if (node.type === 'file' && node.content) {
+          //       const { content, ...rest } = node;
+          //       return rest;
+          //     }
+          //     if (node.children) {
+          //       node.children = stripFileContent(node.children);
+          //     }
+          //     return node;
+          //   });
+          // };
+          // treeData.value = stripFileContent(response.data);
+          treeData.value = response.data;
+          console.log('Processed treeData.value:', treeData.value);
+        } else {
+          console.error('Expected response.data to be an array, but got:', response.data);
+          treeData.value = []; // Default to empty array to prevent further errors
+        }
+        // console.log('Processed treeData.value (content stripped):', JSON.stringify(treeData.value, null, 2));
+      } catch (error) {
+        console.error('Error fetching tree data:', error);
+        info.message = '获取用例列表失败';
+        info.snackbar = true;
+      }
+    };
+
+    // 处理树节点激活事件
+    const handleActiveChange=(activeNodes)=> {
+      // activeNodes is an array containing the selected node object
+      if (activeNodes && activeNodes.length > 0) {
+        const selectedNode = activeNodes[0];
+        const filePath = selectedNode.path;
+
+        // Find the corresponding node in treeData using the path
+        const findNodeByPath = (nodes, path) => {
+          for (const node of nodes) {
+            if (node.path === path) {
+              return node;
+            }
+            if (node.children) {
+              const found = findNodeByPath(node.children, path);
+              if (found) {
+                return found;
+              }
+            }
+          }
+          return null;
+        };
+
+        const node = findNodeByPath(treeData.value, filePath);
+
+        if (node && node.type === 'file') {
+          // Find the parent directory
+          const findParent = (nodes, targetNode) => {
+            for (const node of nodes) {
+              if (node.children) {
+                if (node.children.some(child => child.path === targetNode.path)) {
+                  return node;
+                }
+                const found = findParent(node.children, targetNode);
+                if (found) {
+                  return found;
+                }
+              }
+            }
+            return null;
+          };
+
+          const parentNode = findParent(treeData.value, node);
+
+          if (parentNode && parentNode.children) {
+            let groundTruthContent = '';
+            let descriptionContent = '';
+
+            // Look for ground_truth.html and description.txt in the parent directory's children
+            for (const child of parentNode.children) {
+              if (child.type === 'file') {
+                if (child.name === 'ground_truth.html' && child.content) {
+                  groundTruthContent = child.content;
+                } else if (child.name === 'description.txt' && child.content) {
+                  descriptionContent = child.content;
+                }
+              }
+            }
+
+            // If ground_truth.html and description.txt are found, use their content
+            if (groundTruthContent || descriptionContent) {
+              newCase.value.groundTruth = groundTruthContent;
+              newCase.value.prompt = descriptionContent;
+            } else {
+              // Fallback: load the clicked file's content and generate prompt
+              newCase.value.groundTruth = node.content || '';
+              newCase.value.prompt = `Please generate a VTK.js visualization code for the file: ${node.name}`; // Example prompt
+            }
+          } else {
+            // Fallback if parent not found: load the clicked file's content and generate prompt
+            newCase.value.groundTruth = node.content || '';
+            newCase.value.prompt = `Please generate a VTK.js visualization code for the file: ${node.name}`; // Example prompt
+          }
+        } else {
+          // Handle directory clicks or no node found
+          newCase.value.groundTruth = '';
+          newCase.value.prompt = '';
+        }
+      }
+    }
+
     const showAddDialog = ()=>{
       console.log('showDialog',showDialog.value);
       if (!showDialog.value)
@@ -197,7 +343,7 @@ export default {
         console.error('prompt 不能为空');
         return;
       }
-      
+
       if (!maxIterations || maxIterations < 1) {
         info.message = '最大迭代次数必须大于0';
         info.snackbar = true;
@@ -226,14 +372,27 @@ export default {
         return;
       }
 
+      // 设置加载状态为 true
+      isLoading.value = true;
+
       generateCode(newCase.value).then((res)=>{
         info.message = 'generation end';
         info.snackbar = true;
         context.emit('end', res.data);
-})
+      }).catch(error => {
+        // 处理错误情况
+        info.message = 'generation failed: ' + error.message;
+        info.snackbar = true;
+        console.error('Generation failed:', error);
+      }).finally(() => {
+        // 无论成功或失败，都设置加载状态为 false
+        isLoading.value = false;
+      });
+
       showDialog.value = false;
       context.emit('getNewCase', newCase.value);
     };
+
     const updateWorkflow = (type) => {
 
       switch (type) {
@@ -281,8 +440,10 @@ export default {
 
     };
 
+
     onMounted(()=>{
       // sendCase()
+      fetchTreeData(); // 在组件挂载时调用获取数据函数
     })
     // const showDialog = ref(false);
     return {
@@ -295,8 +456,12 @@ export default {
       inquiryExpansionSelected,
       ragSelected,
       info,
-      models:appConfig.models
+      models:appConfig.models,
+      isLoading, // 暴露 isLoading 变量给模板
+      treeData, // 暴露 treeData 变量给模板
+      handleActiveChange, // 暴露 handleNodeClick 函数给模板
     };
+
   }
 };
 </script>
