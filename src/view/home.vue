@@ -221,6 +221,10 @@ export default {
         // 额外等待一段时间确保 VTK.js 初始化完成
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+        //启动自动评估
+        setTimeout(() => {
+          triggerEvaluation();
+        }, 1000);
         // 现在检查错误
         const hasError = res.error ||
             (res.options && res.options.error_log) ||
@@ -261,6 +265,7 @@ export default {
             }
           });
         }
+        
 
           // 如果开启了迭代循环，则进行代码优化
           if (currentCase.workflow.iterativeLoop) {

@@ -102,7 +102,7 @@
         <v-card-actions>
           <v-btn color="blue darken-1" text @click="showDialog = false">cancel</v-btn>
           <!-- 绑定 loading 属性 -->
-          <v-btn color="blue darken-1" text @click="handleUpload" :loading="isLoading">start</v-btn>
+          <v-btn color="blue darken-1" text @click="handleUpload">start</v-btn>
         </v-card-actions>
       </v-card>
       <div class="workflow">
@@ -112,7 +112,7 @@
         </div>
       </div>
     </v-dialog>
-    <v-btn icon="mdi-plus" color="blue" @click="showAddDialog">
+    <v-btn icon="mdi-plus" :loading="isLoading" color="blue" @click="showAddDialog">
           <v-icon>mdi-plus</v-icon>
         </v-btn>
 
@@ -184,8 +184,8 @@ export default {
       generatorPrompt:appConfig.generator_prompt,
       generator:null,
       evaluator:null,
-      score:'',
-      evaluatorEvaluation:'',
+      // score:'',
+      // evaluatorEvaluation:'',
       errorCount: 0,
       maxIterations: 3,
       workflow:{
@@ -248,6 +248,7 @@ export default {
 
     // 处理树节点激活事件
     const handleActiveChange=(activeNodes)=> {
+      console.log('activeNodes',activeNodes);
       // activeNodes is an array containing the selected node object
       if (activeNodes && activeNodes.length > 0) {
         const selectedNode = activeNodes[0];
@@ -309,20 +310,28 @@ export default {
             if (groundTruthContent || descriptionContent) {
               newCase.value.groundTruth = groundTruthContent;
               newCase.value.prompt = descriptionContent;
+              newCase.value.name = node.name;
+              newCase.value.path = node.path;
             } else {
               // Fallback: load the clicked file's content and generate prompt
               newCase.value.groundTruth = node.content || '';
               newCase.value.prompt = `Please generate a VTK.js visualization code for the file: ${node.name}`; // Example prompt
+              newCase.value.name = node.name;
+              newCase.value.path = node.path;
             }
           } else {
             // Fallback if parent not found: load the clicked file's content and generate prompt
             newCase.value.groundTruth = node.content || '';
             newCase.value.prompt = `Please generate a VTK.js visualization code for the file: ${node.name}`; // Example prompt
+            newCase.value.name = node.name;
+            newCase.value.path = node.path;
           }
         } else {
           // Handle directory clicks or no node found
           newCase.value.groundTruth = '';
           newCase.value.prompt = '';
+          newCase.value.name = '';
+          newCase.value.path = '';
         }
       }
     }
