@@ -47,7 +47,10 @@ function handleExport(data) {
 }
 function getCaseList() {
     return get('/get_case_list', {})
-    
+
+}
+function getExportedCases() {
+    return get('/get_exported_cases', {})
 }
 export {
     getCode,
@@ -60,5 +63,6 @@ export {
     generateCode,
     handleCodeError,
     handleExport,
-    handleErrorAnalysis
+    handleErrorAnalysis,
+    getExportedCases
 }

@@ -40,13 +40,16 @@ const appConfig = {
     // self.embedding_models = {
     //     "bge": 'BAAI/bge-small-en-v1.5',
     // }
-    models: ['deepseek-v3', 'deepseek-r1', 
-        'deepseek-r1-distill-qwen-32b', 
-        "qwen3-turbo", "qwen3-plus",
-        "qwen3-32b",'llama3.2-1b',
-        'claude-3.7-sonnet',
-            'gemini-2.5',
-            "chatGPT-4o-mini"
+    models: ["chatGPT-4o", 'deepseek-v3',
+        'claude-3.7-sonnet', "qwen3-plus",
+        'deepseek-r1-distill-qwen-32b',
+        "qwen3-turbo",
+        "qwen3-32b", 'llama3.2-1b',
+
+        'gemini-2.5',
+        'deepseek-r1',
+        "chatGPT-4o-mini",
+
     ],
     evaluator_prompt: `# Role: An expert for vtk.js and web-based scientific visualization
 # Ground truth: [GROUND_TRUTH]
@@ -87,7 +90,7 @@ Please implement the code strictly according to the specific requirements of the
     // testDes:``,
     testCode: 'please input ground truth',
 
-    
+
     // testCode:``,
 
 }
